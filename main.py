@@ -112,7 +112,7 @@ async def periodic_task(application):
 # Start Telegram bot
 def start_telegram_bot():
     api_key = config["telegram"]["api_key"]
-    application = Application.builder().token(api_key).job_queue(None).build()
+    application = Application.builder().token(api_key).build()
 
     # Add command handlers
     application.add_handler(CommandHandler("start", start))
