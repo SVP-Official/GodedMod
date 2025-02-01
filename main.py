@@ -8,6 +8,7 @@ import os
 from dotenv import load_dotenv
 import logging
 import asyncio
+import uptime
 
 # Configure logging
 logging.basicConfig(
@@ -103,6 +104,41 @@ async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await run_bot()
     await update.message.reply_text("Alerts sent. Check your notifications.")
 
+# Handle /ping command
+async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Pong! 🏓")
+
+# Handle /uptime command
+async def uptime_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uptime_seconds = uptime.uptime()
+    uptime_hours = uptime_seconds // 3600
+    uptime_minutes = (uptime_seconds % 3600) // 60
+    uptime_seconds = uptime_seconds % 60
+    await update.message.reply_text(f"⏰ Uptime: {int(uptime_hours)}h {int(uptime_minutes)}m {int(uptime_seconds)}s")
+
+# Handle /price command
+async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        crypto_name = context.args[0].lower() if context.args else None
+        if not crypto_name:
+            await update.message.reply_text("Please specify a cryptocurrency. Example: /price bitcoin")
+            return
+
+        # Fetch data for the specified cryptocurrency
+        url = f"https://api.coingecko.com/api/v3/simple/price?ids={crypto_name}&vs_currencies=usd"
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+
+        if crypto_name in data:
+            price = data[crypto_name]["usd"]
+            await update.message.reply_text(f"💰 The current price of {crypto_name.capitalize()} is ${price:.2f} USD.")
+        else:
+            await update.message.reply_text(f"❌ Could not find data for {crypto_name.capitalize()}.")
+    except Exception as e:
+        logger.error(f"Error in /price command: {e}")
+        await update.message.reply_text("⚠️ An error occurred while fetching the price. Please try again later.")
+
 # Periodic task for alerts
 async def periodic_task(context: ContextTypes.DEFAULT_TYPE):
     await run_bot()
@@ -115,6 +151,9 @@ def start_telegram_bot():
     # Add command handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("check", check))
+    application.add_handler(CommandHandler("ping", ping))
+    application.add_handler(CommandHandler("uptime", uptime_command))
+    application.add_handler(CommandHandler("price", price))
 
     # Start the periodic task
     application.job_queue.run_repeating(periodic_task, interval=300, first=0)  # Run every 5 minutes
