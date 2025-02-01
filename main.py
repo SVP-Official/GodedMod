@@ -8,7 +8,6 @@ import os
 from dotenv import load_dotenv
 import logging
 import asyncio
-import uptime
 
 # Configure logging
 logging.basicConfig(
@@ -40,6 +39,9 @@ config = {
         "matic-network",
     ],  # Mainstream cryptos
 }
+
+# Track bot start time for uptime calculation
+start_time = time.time()
 
 # Fetch crypto data from CoinGecko API
 def fetch_crypto_data():
@@ -90,6 +92,8 @@ async def run_bot():
             if alerts:
                 message = "🔔 **Crypto Alerts** 🔔\n\n" + "\n".join(alerts)
                 await send_telegram_message(config["telegram"]["chat_id"], message)
+            else:
+                await send_telegram_message(config["telegram"]["chat_id"], "No alerts found.")
     except Exception as e:
         error_message = f"⚠️ **Error in run_bot:** {str(e)}"
         await send_telegram_message(config["telegram"]["owner_id"], error_message)
@@ -110,13 +114,13 @@ async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Handle /uptime command
 async def uptime_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uptime_seconds = uptime.uptime()
+    uptime_seconds = int(time.time() - start_time)
     uptime_hours = uptime_seconds // 3600
     uptime_minutes = (uptime_seconds % 3600) // 60
     uptime_seconds = uptime_seconds % 60
-    await update.message.reply_text(f"⏰ Uptime: {int(uptime_hours)}h {int(uptime_minutes)}m {int(uptime_seconds)}s")
+    await update.message.reply_text(f"⏰ Uptime: {uptime_hours}h {uptime_minutes}m {uptime_seconds}s")
 
-# Handle /price command
+# Handle /price command (in USDT)
 async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         crypto_name = context.args[0].lower() if context.args else None
@@ -124,7 +128,7 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Please specify a cryptocurrency. Example: /price bitcoin")
             return
 
-        # Fetch data for the specified cryptocurrency
+        # Fetch data for the specified cryptocurrency in USDT
         url = f"https://api.coingecko.com/api/v3/simple/price?ids={crypto_name}&vs_currencies=usd"
         response = requests.get(url)
         response.raise_for_status()
@@ -132,7 +136,7 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if crypto_name in data:
             price = data[crypto_name]["usd"]
-            await update.message.reply_text(f"💰 The current price of {crypto_name.capitalize()} is ${price:.2f} USD.")
+            await update.message.reply_text(f"💰 The current price of {crypto_name.capitalize()} is {price:.2f} USDT.")
         else:
             await update.message.reply_text(f"❌ Could not find data for {crypto_name.capitalize()}.")
     except Exception as e:
