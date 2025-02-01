@@ -101,15 +101,29 @@ async def run_bot(chat_id):
 # Handle /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"/start command used by {update.message.from_user.username}")
-    await update.message.reply_text("Crypto Alert Bot is running! Use /check to get alerts.")
+    await update.message.reply_text("Crypto Alert Bot is running! Use /help to see all commands.")
+
+# Handle /help command
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"/help command used by {update.message.from_user.username}")
+    help_text = """
+📋 **Available Commands**:
+
+/start - Start the bot and see instructions.
+/help - Show this help menu.
+/ping - Check if the bot is alive.
+/uptime - Check the bot's uptime.
+/price <crypto> - Get the current price of a cryptocurrency (e.g., /price bitcoin).
+/check - Get the latest crypto alerts.
+"""
+    await update.message.reply_text(help_text, parse_mode="Markdown")
 
 # Handle /check command
 async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"/check command used by {update.message.from_user.username}")
     chat_id = update.message.chat_id
-    await update.message.reply_text("Checking for alerts...")
+    await update.message.reply_text("Fetching the latest crypto signals...")
     await run_bot(chat_id)
-    await update.message.reply_text("Alerts sent. Check your notifications.")
 
 # Handle /ping command
 async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -162,6 +176,7 @@ def start_telegram_bot():
 
     # Add command handlers
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("check", check))
     application.add_handler(CommandHandler("ping", ping))
     application.add_handler(CommandHandler("uptime", uptime_command))
