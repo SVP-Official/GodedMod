@@ -7,6 +7,14 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 import os
 from dotenv import load_dotenv
 import logging
+import asyncio
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -16,9 +24,20 @@ config = {
     "telegram": {
         "api_key": os.getenv("TELEGRAM_API_KEY"),
         "chat_id": os.getenv("TELEGRAM_CHAT_ID"),
-        "owner_id": int(os.getenv("TELEGRAM_OWNER_ID"))  # Add your Telegram user ID here
+        "owner_id": int(os.getenv("TELEGRAM_OWNER_ID")),  # Add your Telegram user ID here
     },
-    "crypto_list": ["bitcoin", "ethereum", "binancecoin", "cardano", "solana", "ripple", "polkadot", "dogecoin", "avalanche-2", "matic-network"]  # Mainstream cryptos
+    "crypto_list": [
+        "bitcoin",
+        "ethereum",
+        "binancecoin",
+        "cardano",
+        "solana",
+        "ripple",
+        "polkadot",
+        "dogecoin",
+        "avalanche-2",
+        "matic-network",
+    ],  # Mainstream cryptos
 }
 
 # Fetch crypto data from CoinGecko API
@@ -30,13 +49,14 @@ def fetch_crypto_data():
         "order": "market_cap_desc",
         "per_page": 100,
         "page": 1,
-        "sparkline": False
+        "sparkline": False,
     }
-    response = requests.get(url, params=params)
-    if response.status_code == 200:
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()  # Raise an exception for HTTP errors
         return response.json()
-    else:
-        print(f"Failed to fetch data: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to fetch data from CoinGecko: {e}")
         return []
 
 # Detect breakout/breakdown patterns
@@ -54,7 +74,11 @@ def detect_patterns(data):
 async def send_telegram_message(chat_id, message):
     api_key = config["telegram"]["api_key"]
     application = Application.builder().token(api_key).build()
-    await application.bot.send_message(chat_id=chat_id, text=message, parse_mode="Markdown")
+    try:
+        await application.bot.send_message(chat_id=chat_id, text=message, parse_mode="Markdown")
+        logger.info(f"Message sent to chat {chat_id}: {message}")
+    except Exception as e:
+        logger.error(f"Failed to send message to chat {chat_id}: {e}")
 
 # Run bot
 async def run_bot():
@@ -79,6 +103,12 @@ async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await run_bot()
     await update.message.reply_text("Alerts sent. Check your notifications.")
 
+# Periodic task for alerts
+async def periodic_task(application):
+    while True:
+        await run_bot()
+        await asyncio.sleep(300)  # Check every 5 minutes
+
 # Start Telegram bot
 def start_telegram_bot():
     api_key = config["telegram"]["api_key"]
@@ -88,10 +118,12 @@ def start_telegram_bot():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("check", check))
 
+    # Start the periodic task
+    application.job_queue.run_once(lambda _: asyncio.create_task(periodic_task(application)), when=0)
+
     # Start polling
     application.run_polling()
 
 # Main function
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     start_telegram_bot()
