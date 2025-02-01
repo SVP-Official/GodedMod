@@ -84,36 +84,41 @@ async def send_telegram_message(chat_id, message):
         logger.error(f"Failed to send message to chat {chat_id}: {e}")
 
 # Run bot
-async def run_bot():
+async def run_bot(chat_id):
     try:
         data = fetch_crypto_data()
         if data:
             alerts = detect_patterns(data)
             if alerts:
                 message = "🔔 **Crypto Alerts** 🔔\n\n" + "\n".join(alerts)
-                await send_telegram_message(config["telegram"]["chat_id"], message)
+                await send_telegram_message(chat_id, message)
             else:
-                await send_telegram_message(config["telegram"]["chat_id"], "No alerts found.")
+                await send_telegram_message(chat_id, "No alerts found.")
     except Exception as e:
         error_message = f"⚠️ **Error in run_bot:** {str(e)}"
         await send_telegram_message(config["telegram"]["owner_id"], error_message)
 
 # Handle /start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"/start command used by {update.message.from_user.username}")
     await update.message.reply_text("Crypto Alert Bot is running! Use /check to get alerts.")
 
 # Handle /check command
 async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"/check command used by {update.message.from_user.username}")
+    chat_id = update.message.chat_id
     await update.message.reply_text("Checking for alerts...")
-    await run_bot()
+    await run_bot(chat_id)
     await update.message.reply_text("Alerts sent. Check your notifications.")
 
 # Handle /ping command
 async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"/ping command used by {update.message.from_user.username}")
     await update.message.reply_text("Pong! 🏓")
 
 # Handle /uptime command
 async def uptime_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"/uptime command used by {update.message.from_user.username}")
     uptime_seconds = int(time.time() - start_time)
     uptime_hours = uptime_seconds // 3600
     uptime_minutes = (uptime_seconds % 3600) // 60
@@ -125,8 +130,11 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         crypto_name = context.args[0].lower() if context.args else None
         if not crypto_name:
+            logger.info(f"/price command used without arguments by {update.message.from_user.username}")
             await update.message.reply_text("Please specify a cryptocurrency. Example: /price bitcoin")
             return
+
+        logger.info(f"/price command used for {crypto_name} by {update.message.from_user.username}")
 
         # Fetch data for the specified cryptocurrency in USDT
         url = f"https://api.coingecko.com/api/v3/simple/price?ids={crypto_name}&vs_currencies=usd"
@@ -145,7 +153,7 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Periodic task for alerts
 async def periodic_task(context: ContextTypes.DEFAULT_TYPE):
-    await run_bot()
+    await run_bot(config["telegram"]["chat_id"])
 
 # Start Telegram bot
 def start_telegram_bot():
