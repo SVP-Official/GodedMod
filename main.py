@@ -104,10 +104,8 @@ async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Alerts sent. Check your notifications.")
 
 # Periodic task for alerts
-async def periodic_task(application):
-    while True:
-        await run_bot()
-        await asyncio.sleep(300)  # Check every 5 minutes
+async def periodic_task(context: ContextTypes.DEFAULT_TYPE):
+    await run_bot()
 
 # Start Telegram bot
 def start_telegram_bot():
@@ -119,7 +117,7 @@ def start_telegram_bot():
     application.add_handler(CommandHandler("check", check))
 
     # Start the periodic task
-    application.job_queue.run_once(lambda _: asyncio.create_task(periodic_task(application)), when=0)
+    application.job_queue.run_repeating(periodic_task, interval=300, first=0)  # Run every 5 minutes
 
     # Start polling
     application.run_polling()
